@@ -1,11 +1,26 @@
 package com.revature;
 
 import java.math.BigDecimal;
+
+// Draft
+
+//import java.sql.Connection;
+//import java.sql.PreparedStatement;
+//import java.sql.SQLException;
+//import java.sql.ResultSet;
+//import java.sql.SQLException;
+//import java.sql.Statement;
 import java.util.Scanner;
 import java.util.logging.Logger;
 // ALL < DEBUG < INFO < WARN < ERROR < FATAL < OFF // Didn't see these as options, saw...
 // warring , info , severe
 // config, finest, finer, fine,
+
+//import com.revature.ConnectionUtil;
+//import com.revature.StreamCloser;
+
+//import com.revature.utils.ConnectionUtil;
+//import com.revature.utils.StreamCloser;
 
 // TODO: Set up database
 // TODO: Set up exceptions
@@ -14,6 +29,7 @@ import java.util.logging.Logger;
 // TODO: make classes/objects, ...
 // https://www.tutorialspoint.com/java/util/scanner_hasnextbigdecimal.htm
 
+// Non-externalized string literal; it should be followed by //$NON-NLS-<n>$
 /** 
  * Create an instance of your controller and launch your application.
  * 
@@ -22,13 +38,22 @@ import java.util.logging.Logger;
 public class Main {
 	
 	// make sure the logs from this class are associated with this class
+	//@SuppressWarnings("null") // Null type safety (type annotations): The expression of type 'Logger' needs unchecked conversion to conform to '@NonNull Logger'
 	public static Logger logger = Logger.getLogger(Main.class.getName()); // TODO: learn this syntax better
 	
-	// lazily making everything static even if it shouldn't be...
+	// lazily making everything static, even if it shouldn't be...
 	static BigDecimal balance = new BigDecimal(0);
+	static String userName = null;
+	
+//	public static void setBalance(BigDecimal balance) {
+//		Main.balance = balance;
+//	}
+	public static BigDecimal getBalance(String userName) {
+		return SQLCode.getBalance(userName);
+	}
 
-	static String ownerName = "I";
-	static String ownerPassword = "-";
+	//static String userName = ""; // TODO: finish refactoring this
+	//static String userPassword = "";
 	
 	// TODO: add log in screen
 	static void showActionMenu() {
@@ -39,18 +64,18 @@ public class Main {
 		System.out.println("W: Withdraw money");
 		System.out.println("D: Deposit money");
 		System.out.println("Q: Quit");
-		System.out.println("Your balance is currently " + balance);
+		System.out.println("Your balance is currently " + getBalance(userName));
 	}
 	static void showWithdrawMenu() {
-		System.out.println("Withdrawing from a a balance of " + balance);
+		System.out.println("Withdrawing from a a balance of " + getBalance(userName));
 		System.out.println("Enter amount to withdraw: ");
 	}
 	static void showDepositMenu() {
-		System.out.println("Depositing money into an account that has a balance of " + balance);
+		System.out.println("Depositing money into an account that has a balance of " + getBalance(userName));
 		System.out.println("Enter amount to deposit: ");
 	}
 	static void showBalance() {
-		System.out.println(balance);
+		System.out.println(getBalance(userName));
 	}
 	
 	static BigDecimal getMoneyDelta() {
@@ -63,10 +88,10 @@ public class Main {
 				if(amount.compareTo(BigDecimal.ZERO) > 0) {
 					return amount;
 				}
-				else {
+				//else {
 					System.out.println("Number needs to be >= 0");
 					attempts++;
-				}
+				//}
 			}
 			else {
 				System.out.println("Input error, Try again"); // aka It wasn't a BigDouble
@@ -77,6 +102,7 @@ public class Main {
 	}
 	
 	
+	//@SuppressWarnings({ "null" })
 	static void ActionMenuInputProcessing() {
 		logger.info("in ActionMenuProcessing");
 		//System.out.println("ActionMenuInputProcessing() running");
@@ -90,27 +116,29 @@ public class Main {
 			System.out.println("Inside if statement");
 			switch(userInput.toUpperCase()) {
 			case("V"):
+				attempts = 0;
 				showBalance();
 				break;
 			
 			// TODO: for deposit/withdraw add data to database
 			
 			case("W"):
+				attempts = 0;
 				showDepositMenu();
 				delta = getMoneyDelta();
-			
-				balance = balance.add(delta); // TODO: combine with Deposit method. // TODO: check if result is <0 or >=0 ...
+				// Logic issue
+				 getBalance(userName).add(delta); // TODO: combine with Deposit method. // TODO: check if result is <0 or >=0 ...
 				showBalance();
-				//System.out.println("The balance is now: " + balance);
-
+				//System.out.println("The balance is now: " + getBalance(userName));
 				break;
 			case("D"):
+				attempts = 0;
 				showWithdrawMenu();
 			// https://www.tutorialspoint.com/java/util/scanner_hasnextbigdecimal.htm
 				delta = getMoneyDelta(); 
 				// verifies result won't be negative...
-				if(balance.subtract(delta).compareTo(BigDecimal.ZERO)>=0) {
-					balance = balance.subtract(delta);
+				if(getBalance(userName).subtract(delta).compareTo(BigDecimal.ZERO)>=0) {
+					balance = getBalance(userName).subtract(delta);
 				}
 				else {
 					logger.warning("input would have created a negative balance");
@@ -136,7 +164,7 @@ public class Main {
 //        }  
 //       }  
 	
-	static boolean loginMenu() {//; ////throws InvalidNewBalanceException{
+	static boolean loginMenu() {// IDEA: throw InvalidNewBalanceException
 		logger.info("in loginMenu");
 		int attempt_limit = 3;
 		int attempts = 0;
@@ -150,9 +178,13 @@ public class Main {
 			if(sc1.hasNext()) {
 				userPassword = sc1.next().trim();
 			}
+			else {
+				userPassword = "";
+			}
 			System.out.println("UserName: " + userName);
 			System.out.println("Password: " + userPassword);
-			if(userName.contentEquals(ownerName) && userPassword.contentEquals(ownerPassword)) {
+			//if(userName.contentEquals(userName) && userPassword.contentEquals(userPassword)) { // TODO: refactor change to SQL script to detect if in security table
+			if(SQLCode.validPassword(userName, userPassword)) {
 				System.out.println("valid username and password");
 				//sc1.close();
 				return true;
@@ -160,7 +192,7 @@ public class Main {
 				//ActionMenuInputProcessing();
 				//break;
 			}
-			else {
+			//else {
 				attempts++;
 				if(attempts >= attempt_limit) { // TODO: verify not off by one
 					// throw new InvalidNewBalanceException("New balance is too small"); // This vs. returning false :(
@@ -168,18 +200,20 @@ public class Main {
 					//sc1.close();
 					return false;
 					//break; // out of while look
-				} else {
+				} //else {
 					logger.warning("Password attempt limit exceeded");
 					System.out.println("Username and/or Password Wrong, try again");
 					System.out.println("Type your user name");
-				}
-			}
+				//}
+			//}
 		}
 		//sc1.close();
 		return false;
 	}
-	
 	// TODO: read from file account name/password/account information
+	// TODO: create general input/output interfaces
+	// Connection conn;// = ConnectionUtil.getConnection();
+
 
 	public static void main(String[] args) {
 		logger.setLevel(null);
@@ -193,4 +227,7 @@ public class Main {
 		}
 		logger.info("end of program");
 	}
+	
+	
+	
 }
