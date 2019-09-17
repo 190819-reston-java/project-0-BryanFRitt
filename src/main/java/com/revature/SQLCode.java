@@ -5,6 +5,9 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+
+//import javax.swing.Spring;
+
 //import java.sql.Statement;
 
 public class SQLCode {
@@ -18,7 +21,7 @@ public class SQLCode {
 		String query = "CREATE table IF NOT EXISTS ? (id serial PRIMARY KEY, ts TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, amount REAL)";
 			try (PreparedStatement stmt = conn.prepareStatement(query))
 			{
-				stmt.setString(1, userName);
+				stmt.setString(0, userName);
 				stmt.execute();
 				stmt.close();
 			} catch (SQLException e) {
@@ -34,11 +37,11 @@ public class SQLCode {
 	public static void addTransation(String userName, BigDecimal amount){
 		try (Connection conn = ConnectionUtil.getConnection())
 		{
-			String query = "INSERT INTO ? (ts, amount) VALUES (now(), ?);";
+			String query = "INSERT INTO ? (ts, amount) VALUES ( now(), ? );";
 			try (PreparedStatement stmt = conn.prepareStatement(query)) 
 			{
-				stmt.setString(1, userName);
-				stmt.setBigDecimal(2, amount);
+				stmt.setString(0, userName);
+				stmt.setBigDecimal(1, amount);
 				stmt.execute();
 			} catch (SQLException e) {
 				// TODO Auto-generated catch block
@@ -72,7 +75,7 @@ public class SQLCode {
 	public static void addUserPassword(String UserName, String Password) {
 		try(Connection conn = ConnectionUtil.getConnection())
 		{
-			String query = "INSERT INTO security_table(user_name, user_password, table_name) values('?',crypt('?', gen_salt('bf',8)), '?');\n";
+			String query = "INSERT INTO security_table(user_name, user_password, table_name) values( ? ,crypt( ? , gen_salt( 'bf',8)), ? );\n";
 			try(PreparedStatement stmt = conn.prepareStatement(query))
 			{
 				stmt.setString(1, UserName);
@@ -93,47 +96,77 @@ public class SQLCode {
 	// ResultSet...
 	// SELECT * FROM security_table WHERE user_name='I3' AND user_password = crypt('johnspassword2',(SELECT user_password FROM security_table WHERE user_name='I3'));
 	public static boolean validPassword(String userName, String password) {
+		System.out.println("Testing Password");
 		ResultSet resultSet = null;
+		int count;
 		try(Connection conn = ConnectionUtil.getConnection()){
-			String query = "SELECT COUNT(*) FROM security_table WHERE user_name='?' AND user_password = crypt('?',(SELECT user_password FROM security_table WHERE user_name='?'));";
-			try(PreparedStatement stmt = conn.prepareStatement(query))
+			String query2 = "SET search_path TO \"project-0\""; 
+			String query = "SELECT COUNT(*) FROM \"project-0\".security_table WHERE user_name= ? AND user_password = crypt( ? ,(SELECT user_password FROM security_table WHERE user_name= ? ));";
+			// Lest make a simple query just for testing
+			//String query = "SET search_path TO \"project-0\"; SELECT * FROM \"project-0\".security_table;";
+			//String query = "SELECT * FROM \"project-0\".security_table;";
+			try(PreparedStatement stmt = conn.prepareStatement(query); PreparedStatement stmt2 = conn.prepareStatement(query2))
 			{
+				System.out.println("stmt.toString is " + stmt.toString());
+				//stmt.executeQuery ( "SET CURRENT_SCHEMA=project-0" ); // Line found on the Internet
+				stmt2.execute();
 				stmt.setString(1, userName);
 				stmt.setString(2, password);
 				stmt.setString(3, userName);
-				resultSet = stmt.executeQuery();
-				if(resultSet.next() && resultSet.getInt(1) == 1) {
+				
+				
+				System.out.println("stmt.toString is " + stmt.toString());
+				resultSet = stmt.executeQuery() ;
+				if(resultSet.next()) {
+					count = resultSet.getInt(1);
 					resultSet.close();
-					return true;
+					if(count == 1) {
+						return true;
+					}
+					if(count >1 ) {
+						// TODO: turn into error statement
+						return false;
+					} // count <= 0;
+					return false;
 				}
 				resultSet.close();
-				return false;
 			} catch (SQLException e) {
 				// TODO Auto-generated catch block
+				try {
+					if(resultSet != null) {
+						resultSet.close();
+					}
+				} catch (SQLException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+					return false;
+				}
 				e.printStackTrace();
 				return false;
-			} 
-		} catch (SQLException e1) {
+			}
+		} catch (SQLException e2) {
 			// TODO Auto-generated catch block
-			e1.printStackTrace();
-			return false;
+			e2.printStackTrace();
 		}
+		return false;
 	}
 	//SELECT * FROM security_table WHERE user_name='I3' AND user_password = crypt('johnspassword2',(SELECT user_password FROM security_table WHERE user_name='I3'));
 	
 	public static BigDecimal getBalance(String userName) {
+		// TODO: What if user doesn't currently have table?
 		BigDecimal balance = null;
 		try(Connection conn = ConnectionUtil.getConnection()){
-			String query = "SELECT sum(amount) FROM ?";
+			String query = "SELECT sum(amount) FROM ? ";
 			try(PreparedStatement stmt = conn.prepareStatement(query))
 			{
-				stmt.setString(1, userName);
-				ResultSet resultSet = stmt.executeQuery();
-				if(resultSet.next()) {
-					balance = resultSet.getBigDecimal(1);
+				stmt.setString(0, userName);
+				try(ResultSet resultSet = stmt.executeQuery()){
+					if(resultSet.next()) {
+						balance = resultSet.getBigDecimal(1);
+					}
+					balance = BigDecimal.valueOf(0);
+					resultSet.close();
 				}
-				balance = BigDecimal.valueOf(0);
-				resultSet.close();
 			}
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block

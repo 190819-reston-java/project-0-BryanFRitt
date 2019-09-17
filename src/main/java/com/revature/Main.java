@@ -127,7 +127,7 @@ public class Main {
 				showDepositMenu();
 				delta = getMoneyDelta();
 				// Logic issue
-				 getBalance(userName).add(delta); // TODO: combine with Deposit method. // TODO: check if result is <0 or >=0 ...
+				 balance = getBalance(userName).add(delta); // TODO: combine with Deposit method. // TODO: check if result is <0 or >=0 ...
 				showBalance();
 				//System.out.println("The balance is now: " + getBalance(userName));
 				break;
@@ -181,9 +181,11 @@ public class Main {
 			else {
 				userPassword = "";
 			}
+			// TODO: refactor check...
 			System.out.println("UserName: " + userName);
 			System.out.println("Password: " + userPassword);
 			//if(userName.contentEquals(userName) && userPassword.contentEquals(userPassword)) { // TODO: refactor change to SQL script to detect if in security table
+			logger.info("Calling SQLCode.validPassword");
 			if(SQLCode.validPassword(userName, userPassword)) {
 				System.out.println("valid username and password");
 				//sc1.close();
@@ -196,12 +198,13 @@ public class Main {
 				attempts++;
 				if(attempts >= attempt_limit) { // TODO: verify not off by one
 					// throw new InvalidNewBalanceException("New balance is too small"); // This vs. returning false :(
-					System.out.println("Password attempt limit exceeded, feel free to try later...");
+					logger.warning("Password attempt limit " + attempt_limit + "exceeded");
+					System.out.println("feel free to try later...");
 					//sc1.close();
 					return false;
 					//break; // out of while look
 				} //else {
-					logger.warning("Password attempt limit exceeded");
+					
 					System.out.println("Username and/or Password Wrong, try again");
 					System.out.println("Type your user name");
 				//}
@@ -216,6 +219,7 @@ public class Main {
 
 
 	public static void main(String[] args) {
+		
 		logger.setLevel(null);
 		logger.info("Starting main");
 		// TODO: Create account(s) then...
@@ -227,7 +231,4 @@ public class Main {
 		}
 		logger.info("end of program");
 	}
-	
-	
-	
 }
