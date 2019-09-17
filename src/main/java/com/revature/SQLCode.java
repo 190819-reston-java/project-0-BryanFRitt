@@ -7,13 +7,46 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 //import javax.swing.Spring;
-
 //import java.sql.Statement;
+
+// NOTE: currently assuming security_table exists..., // TODO: don't assume this.
 
 public class SQLCode {
 
 	public SQLCode() {
 		// TODO Auto-generated constructor stub
+	}
+	
+	// TODO: maybe combine with password checker somehow?
+	public static boolean usersExists(String userName) {
+		try (Connection conn = ConnectionUtil.getConnection()) {
+			String query = "SELECT COUNT(*) FROM security_table WHERE user_name = ?";
+			try (PreparedStatement stmt = conn.prepareStatement(query)){
+				stmt.setString(1,userName);
+				System.out.println("stmt.toString is " + stmt.toString());
+				try(ResultSet resultSet = stmt.executeQuery()){ ;
+					if(resultSet.next()) {
+						int count = resultSet.getInt(1);
+						resultSet.close();
+						if(count == 1) {
+							return true;
+						}
+						if(count >1 ) {
+							// TODO: turn into error statement
+							return true;
+						} // count <= 0;
+						return false;
+					}
+				}
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		} catch (SQLException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		return true;// error on the side of saying user exists // Don't want to create a user that exists
 	}
 
 	public static void createTransationTable(String userName) {	
@@ -72,7 +105,7 @@ public class SQLCode {
 		}
 	}
 	
-	public static void addUserPassword(String UserName, String Password) {
+	public static boolean addUserPassword(String UserName, String Password) {
 		try(Connection conn = ConnectionUtil.getConnection())
 		{
 			String query = "INSERT INTO security_table(user_name, user_password, table_name) values( ? ,crypt( ? , gen_salt( 'bf',8)), ? );\n";
@@ -83,19 +116,22 @@ public class SQLCode {
 				stmt.setString(3, UserName.toLowerCase() + "_transactions");
 				stmt.execute();
 				stmt.close();
+				return true;
 			} catch (SQLException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
+				return false;
 			}
 		}
 		catch (SQLException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
+			return false;
 		}
 	}
 	// ResultSet...
 	// SELECT * FROM security_table WHERE user_name='I3' AND user_password = crypt('johnspassword2',(SELECT user_password FROM security_table WHERE user_name='I3'));
-	public static boolean validPassword(String userName, String password) {
+	public static boolean validatePassword(String userName, String password) {
 		System.out.println("Testing Password");
 		ResultSet resultSet = null;
 		int count;
@@ -151,7 +187,7 @@ public class SQLCode {
 		return false;
 	}
 	//SELECT * FROM security_table WHERE user_name='I3' AND user_password = crypt('johnspassword2',(SELECT user_password FROM security_table WHERE user_name='I3'));
-	
+	 
 	public static BigDecimal getBalance(String userName) {
 		// TODO: What if user doesn't currently have table?
 		BigDecimal balance = null;
@@ -159,7 +195,7 @@ public class SQLCode {
 			String query = "SELECT sum(amount) FROM ? ";
 			try(PreparedStatement stmt = conn.prepareStatement(query))
 			{
-				stmt.setString(0, userName);
+				stmt.setString(0, "transation_table_" + userName); // text before or after name?
 				try(ResultSet resultSet = stmt.executeQuery()){
 					if(resultSet.next()) {
 						balance = resultSet.getBigDecimal(1);

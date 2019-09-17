@@ -43,7 +43,7 @@ public class Main {
 	
 	// lazily making everything static, even if it shouldn't be...
 	static BigDecimal balance = new BigDecimal(0);
-	static String userName = null;
+	//static String userName = null;
 	
 //	public static void setBalance(BigDecimal balance) {
 //		Main.balance = balance;
@@ -56,25 +56,27 @@ public class Main {
 	//static String userPassword = "";
 	
 	// TODO: add log in screen
-	static void showActionMenu() {
+	static void showActionMenu(String userName) {
 		logger.info("in showActionMenu");
 		System.out.println("Welcome, What would you like to do?");
 		System.out.println("");
+		System.out.println("C: Create a new account"); // TODO: This website starts with a log in 
 		System.out.println("V: View balance");
 		System.out.println("W: Withdraw money");
 		System.out.println("D: Deposit money");
 		System.out.println("Q: Quit");
 		System.out.println("Your balance is currently " + getBalance(userName));
 	}
-	static void showWithdrawMenu() {
+	static void showWithdrawMenu(String userName) {
 		System.out.println("Withdrawing from a a balance of " + getBalance(userName));
 		System.out.println("Enter amount to withdraw: ");
 	}
-	static void showDepositMenu() {
+	static void showDepositMenu(String userName) {
 		System.out.println("Depositing money into an account that has a balance of " + getBalance(userName));
 		System.out.println("Enter amount to deposit: ");
 	}
-	static void showBalance() {
+	
+	static void showBalance(String userName) {
 		System.out.println(getBalance(userName));
 	}
 	
@@ -101,9 +103,32 @@ public class Main {
 		return new BigDecimal(0);
 	}
 	
+	static boolean createNewUser() {
+		int createNewUserAttemptCount = 0;
+		int createNewUserAttemptCountLimit = 3;
+		boolean userExists = true;
+		String userName = null;
+		String userPassword;
+		// TODO: figure out how to deal with userName... <<<---
+		while( createNewUserAttemptCount < createNewUserAttemptCountLimit && userExists == true) {
+			System.out.println("What username do you want?");
+			userName = sc1.next(); // Arg... userName is in the parameter of ActionMenuInputProcessing // TODO: reorganize this
+			// TODO test if user exists, re-prompt if exists
+			userExists = SQLCode.usersExists(userName);
+		}
+		if(userExists == false && userName != null) {
+			System.out.println("What password do you want?"); // TODO: get user password // TODO: make up password requirement rules.
+			userPassword = sc1.next();
+			return SQLCode.addUserPassword(userName, userPassword);
+		}
+			return false;
+		// TODO: Finish this part off...
+		// RETURN userName/userPassword?
+	}
+	
 	
 	//@SuppressWarnings({ "null" })
-	static void ActionMenuInputProcessing() {
+	static void ActionMenuInputProcessing(String userName) { // TODO: ?Some way to make this in a way that doesn't take userName as input?
 		logger.info("in ActionMenuProcessing");
 		//System.out.println("ActionMenuInputProcessing() running");
 		int attempt_limit = 3;
@@ -117,23 +142,24 @@ public class Main {
 			switch(userInput.toUpperCase()) {
 			case("V"):
 				attempts = 0;
-				showBalance();
+				showBalance(userName);
 				break;
-			
-			// TODO: for deposit/withdraw add data to database
+			case("C"):  // TODO: finish...
+				createNewUser();
+				break;
 			
 			case("W"):
 				attempts = 0;
-				showDepositMenu();
+				showDepositMenu(userName);
 				delta = getMoneyDelta();
 				// Logic issue
 				 balance = getBalance(userName).add(delta); // TODO: combine with Deposit method. // TODO: check if result is <0 or >=0 ...
-				showBalance();
+				showBalance(userName);
 				//System.out.println("The balance is now: " + getBalance(userName));
 				break;
 			case("D"):
 				attempts = 0;
-				showWithdrawMenu();
+				showWithdrawMenu(userName);
 			// https://www.tutorialspoint.com/java/util/scanner_hasnextbigdecimal.htm
 				delta = getMoneyDelta(); 
 				// verifies result won't be negative...
@@ -164,7 +190,7 @@ public class Main {
 //        }  
 //       }  
 	
-	static boolean loginMenu() {// IDEA: throw InvalidNewBalanceException
+	static String loginMenu() {// IDEA: throw InvalidNewBalanceException
 		logger.info("in loginMenu");
 		int attempt_limit = 3;
 		int attempts = 0;
@@ -182,14 +208,14 @@ public class Main {
 				userPassword = "";
 			}
 			// TODO: refactor check...
-			System.out.println("UserName: " + userName);
-			System.out.println("Password: " + userPassword);
+			//System.out.println("UserName: " + userName);
+			//System.out.println("Password: " + userPassword);
 			//if(userName.contentEquals(userName) && userPassword.contentEquals(userPassword)) { // TODO: refactor change to SQL script to detect if in security table
-			logger.info("Calling SQLCode.validPassword");
-			if(SQLCode.validPassword(userName, userPassword)) {
+			logger.info("Calling SQLCode.validatePassword");
+			if(SQLCode.validatePassword(userName, userPassword)) {
 				System.out.println("valid username and password");
 				//sc1.close();
-				return true;
+				return userName;
 				//showActionMenu(); // probably too much coupling(spelling?), wish I had paper...
 				//ActionMenuInputProcessing();
 				//break;
@@ -201,7 +227,7 @@ public class Main {
 					logger.warning("Password attempt limit " + attempt_limit + "exceeded");
 					System.out.println("feel free to try later...");
 					//sc1.close();
-					return false;
+					return null;
 					//break; // out of while look
 				} //else {
 					
@@ -211,7 +237,7 @@ public class Main {
 			//}
 		}
 		//sc1.close();
-		return false;
+		return null;
 	}
 	// TODO: read from file account name/password/account information
 	// TODO: create general input/output interfaces
@@ -220,14 +246,18 @@ public class Main {
 
 	public static void main(String[] args) {
 		
+		// TODO: deal with null users at startup...
+		// TODO: program asks to log in first, what if there are no users in table?, ...
+		
 		logger.setLevel(null);
 		logger.info("Starting main");
 		// TODO: Create account(s) then...
-		// return a value? // this calls Action menu // bad cohesion 
-		if(loginMenu()) {
-			showActionMenu();
+		// return a value? // this calls Action menu // bad cohesion
+		String userName = loginMenu();
+		if(userName != null) {
+			showActionMenu(userName);
 			logger.info("Finished showActionMenu");
-			ActionMenuInputProcessing(); // instead of doing the stuff in ActionMenuInputProcessing have it call functions that do it.
+			ActionMenuInputProcessing(userName); // instead of doing the stuff in ActionMenuInputProcessing have it call functions that do it.
 		}
 		logger.info("end of program");
 	}
