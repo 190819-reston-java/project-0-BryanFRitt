@@ -50,8 +50,10 @@ public class MainTest {
 	/**
 	 * Test method for {@link com.revature.Main#getBalance(java.lang.String)}.
 	 */
+	// IDE tells me I should put this as static, but when I run it, JUINT says ..."should not be static" error
+	@SuppressWarnings("static-method")
 	@Test
-	public static void testGetBalance() {
+	public void testGetBalance() {
 		assert(Main.getBalance("admin").compareTo(BigDecimal.valueOf(0)) != -1);
 	}
 	

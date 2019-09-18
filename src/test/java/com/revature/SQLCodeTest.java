@@ -26,8 +26,10 @@ public class SQLCodeTest {
 //	public void tearDown() throws Exception {
 //	}
 
+	// IDE says I should put this as static, but JUINT errors if I do so
+	@SuppressWarnings("static-method")
 	@Test
-	public static void testShowTransations() {
+	public void testShowTransations() {
 		assertTrue(SQLCode.showTransations("admin"));
 	}
 

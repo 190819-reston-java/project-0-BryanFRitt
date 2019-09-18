@@ -157,16 +157,19 @@ public class SQLCode {
 		}
 	}
 	
-	public static boolean addUserPassword(String UserName, String Password) {
+	public static boolean addUserPassword(String userName, String Password) {
 		try(Connection conn = ConnectionUtil.getConnection())
 		{
+			// assumes 'userName' would make a valid table // TODO: reset up to prevent SQL injection
+			String query3 = "CREATE table IF NOT EXISTS transation_table_" + userName  + "(id serial PRIMARY KEY, ts TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, amount REAL);";
 			String query2 = "SET search_path TO \"project-0\"";
 			String query = "INSERT INTO security_table(user_name, user_password, table_name) values( ? ,crypt( ? , gen_salt( 'bf',8)), ? );\n";
-			try(PreparedStatement stmt = conn.prepareStatement(query); PreparedStatement stmt2 = conn.prepareStatement(query2);)
+			try(PreparedStatement stmt = conn.prepareStatement(query); PreparedStatement stmt2 = conn.prepareStatement(query2);PreparedStatement stmt3 = conn.prepareStatement(query3))
 			{
-				stmt.setString(1, UserName);
+				stmt3.execute();
+				stmt.setString(1, userName);
 				stmt.setString(2, Password);
-				stmt.setString(3, UserName.toLowerCase() + "_transactions");
+				stmt.setString(3, userName.toLowerCase() + "_transactions");
 				stmt2.execute();
 				stmt.execute();
 				stmt.close();
