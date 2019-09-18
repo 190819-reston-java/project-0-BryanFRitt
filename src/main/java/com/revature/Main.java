@@ -22,8 +22,8 @@ import java.util.logging.Logger;
 //import com.revature.utils.ConnectionUtil;
 //import com.revature.utils.StreamCloser;
 
-// TODO: Set up database
-// TODO: Set up exceptions
+// TODO: Set up database DONE; but if some ideas, or issues come up, adjust as needed
+// TODO: Set up exceptions 
 // TODO: Change this to permit multiple users
 // TODO: quit making things static and start using classes and objects
 // TODO: make classes/objects, ...
@@ -45,12 +45,24 @@ public class Main {
 	static BigDecimal balance = new BigDecimal(0);
 	//static String userName = null;
 	
-//	public static void setBalance(BigDecimal balance) {
-//		Main.balance = balance;
-//	}
-	public static BigDecimal getBalance(String userName) {
-		return SQLCode.getBalance(userName);
+	public static void setBalance(BigDecimal balance) {
+		Main.balance = balance;
 	}
+	
+	public static BigDecimal getBalance(String userName) {
+		try {
+			BigDecimal newBalance = SQLCode.getBalance(userName);
+			if(newBalance != null) {
+				return newBalance;
+			}
+			throw new BadBalanceException("Balance retrieved is probably bad" + newBalance);
+			//return BigDecimal.ZERO; // TODO: should throw/catch error
+		} catch(BadBalanceException e) {
+			System.out.println(e);
+			return BigDecimal.ZERO;
+		}
+	}
+	
 
 	//static String userName = ""; // TODO: finish refactoring this
 	//static String userPassword = "";
@@ -64,6 +76,7 @@ public class Main {
 		System.out.println("V: View balance");
 		System.out.println("W: Withdraw money");
 		System.out.println("D: Deposit money");
+		System.out.println("S: Show Transations");
 		System.out.println("Q: Quit");
 		System.out.println("Your balance is currently " + getBalance(userName));
 	}
@@ -77,7 +90,7 @@ public class Main {
 	}
 	
 	static void showBalance(String userName) {
-		System.out.println(getBalance(userName));
+		System.out.println("You have a balance of " + getBalance(userName));
 	}
 	
 	static BigDecimal getMoneyDelta() {
@@ -115,6 +128,7 @@ public class Main {
 			userName = sc1.next(); // Arg... userName is in the parameter of ActionMenuInputProcessing // TODO: reorganize this
 			// TODO test if user exists, re-prompt if exists
 			userExists = SQLCode.usersExists(userName);
+			createNewUserAttemptCount++;
 		}
 		if(userExists == false && userName != null) {
 			System.out.println("What password do you want?"); // TODO: get user password // TODO: make up password requirement rules.
@@ -126,8 +140,8 @@ public class Main {
 		// RETURN userName/userPassword?
 	}
 	
-	
 	//@SuppressWarnings({ "null" })
+	// TODO: these could be made more foreign language friendly using numbers instead of letters.
 	static void ActionMenuInputProcessing(String userName) { // TODO: ?Some way to make this in a way that doesn't take userName as input?
 		logger.info("in ActionMenuProcessing");
 		//System.out.println("ActionMenuInputProcessing() running");
@@ -135,10 +149,11 @@ public class Main {
 		int attempts = 0;
 		String userInput;
 		BigDecimal delta; 
-
-		if(attempts < attempt_limit){
+		boolean quit = false;
+		while(attempts < attempt_limit && quit == false){
+			showActionMenu(userName);
 			userInput = sc1.next();
-			System.out.println("Inside if statement");
+			//System.out.println("Inside if statement");
 			switch(userInput.toUpperCase()) {
 			case("V"):
 				attempts = 0;
@@ -148,36 +163,56 @@ public class Main {
 				createNewUser();
 				break;
 			
-			case("W"):
-				attempts = 0;
-				showDepositMenu(userName);
-				delta = getMoneyDelta();
-				// Logic issue
-				 balance = getBalance(userName).add(delta); // TODO: combine with Deposit method. // TODO: check if result is <0 or >=0 ...
-				showBalance(userName);
+			case("D"):
+				try {
+					attempts = 0;
+					showDepositMenu(userName);
+					delta = getMoneyDelta();
+					if(getBalance(userName).add(delta).compareTo(BigDecimal.ZERO)>=0) {
+						SQLCode.addTransation(userName, delta);
+						balance = getBalance(userName).add(delta); // TODO: combine with Deposit method. // TODO: check if result is <0 or >=0 ...
+						showBalance(userName);
+					} else { // depositing positive money should never result in negative balance. // TODO: don't assume a positive starting point ...
+						logger.warning("input would have created a negative balance" + getBalance(userName).add(delta));
+						throw new NegativeBalanceException("New balance would have been less than zero, " + getBalance(userName).add(delta));
+					} 
+				} catch (NegativeBalanceException e) {
+					System.out.println("NegativeBalanceExceptionThrown" + e);
+				}
 				//System.out.println("The balance is now: " + getBalance(userName));
 				break;
-			case("D"):
-				attempts = 0;
-				showWithdrawMenu(userName);
-			// https://www.tutorialspoint.com/java/util/scanner_hasnextbigdecimal.htm
-				delta = getMoneyDelta(); 
-				// verifies result won't be negative...
-				if(getBalance(userName).subtract(delta).compareTo(BigDecimal.ZERO)>=0) {
-					balance = getBalance(userName).subtract(delta);
-				}
-				else {
-					logger.warning("input would have created a negative balance");
+			case("W"):
+				try {
+					attempts = 0;
+					showWithdrawMenu(userName);
+				// https://www.tutorialspoint.com/java/util/scanner_hasnextbigdecimal.htm
+					delta = getMoneyDelta(); 
+					// verifies result won't be negative...
+					if(getBalance(userName).subtract(delta).compareTo(BigDecimal.ZERO)>=0) {
+						SQLCode.addTransation(userName, delta.multiply(BigDecimal.valueOf(-1)));
+						balance = getBalance(userName).subtract(delta);
+					}
+					else {
+						logger.warning("input would have created a negative balance" + getBalance(userName).subtract(delta));
+						throw new NegativeBalanceException("New balance would have been less than zero " + getBalance(userName).subtract(delta));
+					}
+				}catch(NegativeBalanceException e) {
+					System.out.println("NegativeBalanceExceptionThrown" + e);
 				}
 			break;
+			case("S"):
+				SQLCode.showTransations(userName);
+				break;
 			case("Q"):
-				System.out.println("Thanks, session was sucessful");
+				System.out.println("Thanks, Session ended sucessfully");
+				quit = true;
 				break;
 			default:
 				System.out.println("What happened?, try again?"); // TODO: an actual try again...
 				attempts++;
 				break;
 			}
+			
 		// replay menu then run this again...
 		}
 	}
@@ -199,7 +234,7 @@ public class Main {
 		
 		System.out.println("Type your user name");
 		while(sc1.hasNext() && attempts < attempt_limit){
-			userName = sc1.next().trim();
+			userName = sc1.next().trim().toLowerCase();
 			System.out.println("Type your password");
 			if(sc1.hasNext()) {
 				userPassword = sc1.next().trim();
@@ -222,8 +257,7 @@ public class Main {
 			}
 			//else {
 				attempts++;
-				if(attempts >= attempt_limit) { // TODO: verify not off by one
-					// throw new InvalidNewBalanceException("New balance is too small"); // This vs. returning false :(
+				if(attempts >= attempt_limit) { // TODO: verify not off by one					
 					logger.warning("Password attempt limit " + attempt_limit + "exceeded");
 					System.out.println("feel free to try later...");
 					//sc1.close();
@@ -242,12 +276,20 @@ public class Main {
 	// TODO: read from file account name/password/account information
 	// TODO: create general input/output interfaces
 	// Connection conn;// = ConnectionUtil.getConnection();
+	// TODO: use create create security table sql?
 
 
 	public static void main(String[] args) {
 		
 		// TODO: deal with null users at startup...
 		// TODO: program asks to log in first, what if there are no users in table?, ...
+		// TODO: assignment-wise: add JUnit
+		// TODO: better use of logger
+		// TODO: ADD RESTRICTION ON USERNAMES OR RISK SQL INJECTION
+		
+		// NOTE: Default userName/password: Admin, Password
+		
+		// TODO: Add the ability to switch to new account without exiting script
 		
 		logger.setLevel(null);
 		logger.info("Starting main");
@@ -255,7 +297,7 @@ public class Main {
 		// return a value? // this calls Action menu // bad cohesion
 		String userName = loginMenu();
 		if(userName != null) {
-			showActionMenu(userName);
+			//showActionMenu(userName);
 			logger.info("Finished showActionMenu");
 			ActionMenuInputProcessing(userName); // instead of doing the stuff in ActionMenuInputProcessing have it call functions that do it.
 		}

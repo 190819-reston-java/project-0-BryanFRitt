@@ -1,5 +1,5 @@
 package com.revature;
 
-public interface MenuInput {
-
-}
+//public interface MenuInput {
+//
+//}
